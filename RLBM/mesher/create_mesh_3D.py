@@ -1,0 +1,1 @@
+# Take STL file
