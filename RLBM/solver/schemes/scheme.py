@@ -20,10 +20,6 @@ class Scheme:
     LATTICE_WEIGHTS = jnp.array([])
 
 
-class Scheme1D(Scheme):
-    pass
-
-
 class Scheme2D(Scheme):
     pass
 
