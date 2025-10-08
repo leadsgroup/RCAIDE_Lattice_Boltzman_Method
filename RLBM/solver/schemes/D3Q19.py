@@ -1,8 +1,8 @@
-from solver.schemes.scheme import *
+from RLBM.solver.schemes import *
 import jax.numpy as jnp
 
 
-class D3Q19(Scheme.D3):
+class D3Q19(Scheme3D):
     LATTICE_VELOCITIES = jnp.array([
         [ 0,  +1,  -1,   0,   0,   0,   0,  +1,  -1,  +1,  -1,   0,   0,  +1,  -1,  +1,  -1,   0,   0],
         [ 0,   0,   0,  +1,  -1,   0,   0,  +1,  -1,   0,   0,  +1,  -1,  +1,  -1,   0,   0,  +1,  -1],
@@ -15,4 +15,4 @@ class D3Q19(Scheme.D3):
         1/72, 1/72, 1/72, 1/72, 1/72, 1/72, 1/72, 1/72
     ])
     
-    LATTICE_INDICES, OPPOSITE_LATTICE_INDICES = Scheme.compute_lattice_weights(LATTICE_VELOCITIES) 
+    LATTICE_INDICES, OPPOSITE_LATTICE_INDICES = compute_lattice_weights(LATTICE_VELOCITIES) 

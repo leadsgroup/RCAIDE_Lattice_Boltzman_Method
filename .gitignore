@@ -206,5 +206,6 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# VSCode config files
+# IDE Config files
 .vscode
+.idea

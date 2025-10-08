@@ -1,7 +1,7 @@
-from solver.schemes.scheme import *
+from RLBM.solver.schemes import *
 import jax.numpy as jnp
 
-class D2Q9(Scheme.D2):
+class D2Q9(Scheme2D):
     LATTICE_VELOCITIES = jnp.array([
         [ 0,  1,  0, -1,  0,  1, -1, -1,  1,],
         [ 0,  0,  1,  0, -1,  1,  1, -1, -1,]
@@ -13,4 +13,4 @@ class D2Q9(Scheme.D2):
         1/36, 1/36, 1/36, 1/36,     # 45 ° Velocities [5, 6, 7, 8]
     ])
     
-    LATTICE_INDICES, OPPOSITE_LATTICE_INDICES = Scheme.compute_lattice_weights(LATTICE_VELOCITIES) 
+    LATTICE_INDICES, OPPOSITE_LATTICE_INDICES = compute_lattice_weights(LATTICE_VELOCITIES) 
