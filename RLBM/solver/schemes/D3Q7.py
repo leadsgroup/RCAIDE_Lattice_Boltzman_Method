@@ -15,3 +15,4 @@ class D3Q7(Scheme3D):
     ])
     
     LATTICE_INDICES, OPPOSITE_LATTICE_INDICES = compute_lattice_weights(LATTICE_VELOCITIES)
+    Q = 7

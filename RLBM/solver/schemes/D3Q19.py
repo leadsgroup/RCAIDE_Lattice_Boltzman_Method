@@ -10,9 +10,9 @@ class D3Q19(Scheme3D):
     ])
 
     LATTICE_WEIGHTS = jnp.array([
-        2/9,
-        1/9,  1/9,  1/9,  1/9,  1/9,  1/9,
-        1/72, 1/72, 1/72, 1/72, 1/72, 1/72, 1/72, 1/72
+        1/3,
+        1/18,  1/18,  1/18,  1/18,  1/18,  1/18,
+        1/36, 1/36, 1/36, 1/36, 1/36, 1/36, 1/36, 1/36, 1/36, 1/36, 1/36, 1/36
     ])
     
     LATTICE_INDICES, OPPOSITE_LATTICE_INDICES = compute_lattice_weights(LATTICE_VELOCITIES) 

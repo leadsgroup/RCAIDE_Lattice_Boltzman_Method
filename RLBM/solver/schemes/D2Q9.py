@@ -13,4 +13,5 @@ class D2Q9(Scheme2D):
         1/36, 1/36, 1/36, 1/36,     # 45 ° Velocities [5, 6, 7, 8]
     ])
     
-    LATTICE_INDICES, OPPOSITE_LATTICE_INDICES = compute_lattice_weights(LATTICE_VELOCITIES) 
+    LATTICE_INDICES, OPPOSITE_LATTICE_INDICES = compute_lattice_weights(LATTICE_VELOCITIES)
+    Q = 9

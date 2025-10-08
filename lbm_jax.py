@@ -142,11 +142,11 @@ Then the relaxation factor is computed according to
 
 ------
 
-Note that this scheme can become unstable for Reynoldsnumbers >~ 350 ²
+Note that this scheme can become unstable for Reynolds numbers >~ 350 ²
 
 ² Note that the stability of the D2Q9 scheme is mathematically not
-linked to the Reynoldsnumber. Just use this as a reference. Stability
-for this scheme is realted to the velocity magnitude.
+linked to the Reynolds number. Just use this as a reference. Stability
+for this scheme is related to the velocity magnitude.
 Consequentially, the actual limiting factor is the Mach number (the
 ratio between velocity magnitude and the speed of sound).
 
@@ -160,8 +160,8 @@ from tqdm import tqdm
 N_ITERATIONS = 15_000
 REYNOLDS_NUMBER = 80
 
-N_POINTS_X = 3000
-N_POINTS_Y = 500
+N_POINTS_X = 300
+N_POINTS_Y = 50
 
 CYLINDER_CENTER_INDEX_X = N_POINTS_X // 5
 CYLINDER_CENTER_INDEX_Y = N_POINTS_Y // 2
@@ -232,10 +232,10 @@ def get_equilibrium_discrete_velocities(macroscopic_velocities, density):
         LATTICE_VELOCITIES,
         macroscopic_velocities,
     )
-    macroscopic_velocity_magnitude = jnp.linalg.norm(
-        macroscopic_velocities,
+    macroscopic_velocity_magnitude = jnp.sum(
+        macroscopic_velocities ** 2,
         axis=-1,
-        ord=2,
+        keepdims=True
     )
     equilibrium_discrete_velocities = (
         density[..., jnp.newaxis]
@@ -249,7 +249,7 @@ def get_equilibrium_discrete_velocities(macroscopic_velocities, density):
             +
             9/2 * projected_discrete_velocities**2
             -
-            3/2 * macroscopic_velocity_magnitude[..., jnp.newaxis]**2
+            3/2 * macroscopic_velocity_magnitude
         )
     )
 

@@ -1,3 +1,4 @@
+flax
 jax[cuda13]
 warp
 matplotlib
