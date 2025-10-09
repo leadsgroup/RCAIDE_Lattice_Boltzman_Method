@@ -1,4 +1,7 @@
 import jax.numpy as jnp
+import jax
+
+from flax import struct
 
 from RLBM.case import Case2D
 from RLBM.solver import *
@@ -16,81 +19,103 @@ from RLBM.solver import *
 # c[d][q] - (lattice velocities)
 # w[q] - (lattice weights)
 
-class Solver2D(Solver):
-    def __init__(self, case):
+@struct.dataclass
+class Solver2D:
+    """A JAX-JIT-compatible 2D Lattice Boltzmann solver."""
+    from flax import struct
+
+
+import jax.numpy as jnp
+
+
+@struct.dataclass
+class Solver2D:
+    f: jnp.ndarray
+    f_eq: jnp.ndarray
+    u: jnp.ndarray
+    rho: jnp.ndarray
+    c: jnp.ndarray
+    w: jnp.ndarray
+    tau: float = 1.0
+
+    def replace(self, **updates):
+        """IDE stub — replaced at runtime by flax.struct.dataclass"""
+        return self
+
+    @staticmethod
+    def initialize(case: Case2D):
+        """Pure initializer returning a new Solver2D instance."""
         assert isinstance(case, Case2D)
-        self.scheme = case.scheme
-
-        self.f = jnp.zeros(case.grid_shape + (self.scheme.Q,))
-        self.f_eq = jnp.zeros(case.grid_shape + (self.scheme.Q,))
-        self.u = jnp.zeros(case.grid_shape + (2,))
-        self.rho = jnp.ones(case.grid_shape)
-        self.c = self.scheme.LATTICE_VELOCITIES
-        self.w = self.scheme.LATTICE_WEIGHTS
-        self.tau = 5
-
+        scheme = case.scheme
         nx, ny = case.grid_shape
+
+        u = jnp.zeros((nx, ny, 2))
+        rho = jnp.ones((nx, ny))
+        c = scheme.LATTICE_VELOCITIES
+        w = scheme.LATTICE_WEIGHTS
+        tau = 5.0
+
+        # --- Initialize rho (cone) ---
         ctr_x, ctr_y = nx // 2, ny // 2
         r_cone = ny // 4
-
-        # Create coordinate grids
-        x = jnp.arange(nx)[:, None]  # shape (nx,1)
-        y = jnp.arange(ny)[None, :]  # shape (1,ny)
-
-        # Compute squared distance from center
+        x = jnp.arange(nx)[:, None]
+        y = jnp.arange(ny)[None, :]
         r_sq = (x - ctr_x) ** 2 + (y - ctr_y) ** 2
         mask = r_sq < r_cone ** 2
-
-        # Compute radial distance only where needed
         r = jnp.sqrt(r_sq)
         rho_update = 2 - r / r_cone
+        rho = jnp.where(mask, rho_update, rho)
 
-        # Apply masked update (no Python loops)
-        self.rho = jnp.where(mask, rho_update, self.rho)
+        # --- Initialize equilibrium and f ---
+        f_eq = rho[..., None] * w[None, None, :] * (
+                1
+                + 3 * jnp.einsum("nmd,dq->nmq", u, c)
+                + 4.5 * jnp.einsum("nmd,dq->nmq", u, c) ** 2
+                - 1.5 * jnp.sum(u ** 2, axis=-1, keepdims=True)
+        )
+        f = f_eq
 
-        print("Done initializing rho")
-        self.calc_f_eq()
-        self.f = self.f_eq
+        return Solver2D(f=f, f_eq=f_eq, u=u, rho=rho, c=c, w=w, tau=tau)
 
-    def run_iterations(self, n=10):
-        for i in range(n):
-            self.iterate()
+    # ρ = ∑ᵢ fᵢ
+    def calc_rho(self):
+        rho = jnp.sum(self.f, axis=-1)
+        return self.replace(rho=rho)
+
+    # u = 1/ρ ∑ᵢ fᵢ cᵢ
+    def calc_u(self):
+        u = jnp.einsum("nmq,dq->nmd", self.f, self.c) / self.rho[..., jnp.newaxis]
+        return self.replace(u=u)
+
+    # Equilibrium populations
+    def calc_f_eq(self):
+        u_proj = jnp.einsum("nmd,dq->nmq", self.u, self.c)
+        u_mag_sq = jnp.sum(self.u ** 2, axis=-1, keepdims=True)
+        f_eq = (
+                self.rho[..., jnp.newaxis] * self.w[jnp.newaxis, jnp.newaxis, :] *
+                (1 + 3 * u_proj + 4.5 * u_proj ** 2 - 1.5 * u_mag_sq)
+        )
+        return self.replace(f_eq=f_eq)
 
     def iterate(self):
-        self.calc_rho()
-        self.calc_u()
-        self.calc_f_eq()
+        s = self.calc_rho().calc_u().calc_f_eq()
 
-        # Collision step
-        f_star = self.f - (self.f - self.f_eq) / self.tau
+        # Collision
+        f_star = s.f - (s.f - s.f_eq) / s.tau
 
-        # Stream step
-        f_stream = f_star
-        for i in range(self.scheme.Q):
-            f_stream = f_stream.at[:, :, i].set(
-                jnp.roll(
-                    jnp.roll(
-                        f_star[:, :, i],
-                        self.c[0, i],
-                        axis=0
-                    ),
-                    self.c[1, i],
-                    axis=1
-                )
+        # Streaming
+        def stream_one(i, f):
+            return f.at[:, :, i].set(
+                jnp.roll(jnp.roll(f_star[:, :, i],
+                                  s.c[0, i], axis=0),
+                         s.c[1, i], axis=1)
             )
 
-        self.f = f_stream
+        f_stream = jax.lax.fori_loop(0, s.c.shape[1], stream_one, f_star)
+        return s.replace(f=f_stream)
 
-    def calc_rho(self):
-        self.rho = jnp.einsum("nmq->nm", self.f)
+    def run_iterations(self, n):
+        def body(_, state):
+            return state.iterate()
 
-    def calc_u(self):
-        self.u = jnp.einsum("nmq,dq->nmd", self.f, self.c) / self.rho[..., jnp.newaxis]
-
-    def calc_f_eq(self):
-        self.f_eq = self.rho[..., jnp.newaxis] * self.w[jnp.newaxis, jnp.newaxis, :] * (
-                1
-                + 3 * jnp.einsum("nmd,dq->nmq", self.u, self.c)
-                + 9 / 2 * jnp.einsum("nmd,dq->nmq", self.u, self.c) ** 2
-                - 3 / 2 * jnp.sum(self.u ** 2, axis=-1, keepdims=True)
-        )
+        return jax.lax.fori_loop(0, n, body, self)
