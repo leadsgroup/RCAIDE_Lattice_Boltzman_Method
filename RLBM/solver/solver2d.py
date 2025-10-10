@@ -1,6 +1,5 @@
 import jax.numpy as jnp
 import jax
-
 from flax import struct
 
 from RLBM.case import Case2D
@@ -18,14 +17,6 @@ from RLBM.solver import *
 # rho[n][m] - (density)
 # c[d][q] - (lattice velocities)
 # w[q] - (lattice weights)
-
-@struct.dataclass
-class Solver2D:
-    """A JAX-JIT-compatible 2D Lattice Boltzmann solver."""
-    from flax import struct
-
-
-import jax.numpy as jnp
 
 
 @struct.dataclass
@@ -53,9 +44,9 @@ class Solver2D:
         rho = jnp.ones((nx, ny))
         c = scheme.LATTICE_VELOCITIES
         w = scheme.LATTICE_WEIGHTS
-        tau = 5.0
+        tau = 1
 
-        # --- Initialize rho (cone) ---
+        # --- Initialize density cone ---
         ctr_x, ctr_y = nx // 2, ny // 2
         r_cone = ny // 4
         x = jnp.arange(nx)[:, None]
@@ -67,7 +58,7 @@ class Solver2D:
         rho = jnp.where(mask, rho_update, rho)
 
         # --- Initialize equilibrium and f ---
-        f_eq = rho[..., None] * w[None, None, :] * (
+        f_eq = rho[..., jnp.newaxis] * w[jnp.newaxis, jnp.newaxis, :] * (
                 1
                 + 3 * jnp.einsum("nmd,dq->nmq", u, c)
                 + 4.5 * jnp.einsum("nmd,dq->nmq", u, c) ** 2
@@ -106,9 +97,7 @@ class Solver2D:
         # Streaming
         def stream_one(i, f):
             return f.at[:, :, i].set(
-                jnp.roll(jnp.roll(f_star[:, :, i],
-                                  s.c[0, i], axis=0),
-                         s.c[1, i], axis=1)
+                jnp.roll(f_star[..., i], s.c[:, i], axis=(0,1))
             )
 
         f_stream = jax.lax.fori_loop(0, s.c.shape[1], stream_one, f_star)
