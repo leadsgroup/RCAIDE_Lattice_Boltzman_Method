@@ -1,0 +1,5 @@
+2025-10-12 Profile memory usage, try to reduce @solver
+2025-10-12 Mesh generator for airfoils @mesher
+2025-10-12 Isolate streaming code into its own file @solver
+2025-10-12 Modularize collision operators @solver
+2025-10-12 Create BC class; start by implementing Zou/HE BCs @solver
